@@ -119,3 +119,21 @@ export const deleteHotel = (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+export const getManagedHotels = (req, res) => {
+  try {
+    if (req.userRole === 'admin') {
+      const hotels = Hotel.getAll();
+      return res.json(hotels);
+    }
+
+    if (req.userRole === 'hotel_manager') {
+      const hotels = Hotel.getManagedHotels(req.userId);
+      return res.json(hotels);
+    }
+
+    res.status(403).json({ error: 'Access denied' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};

@@ -6,7 +6,7 @@ import { Plus, Edit2, Trash2, Hotel as HotelIcon, Loader2, DoorOpen } from 'luci
 import toast from 'react-hot-toast';
 
 export const AdminDashboard = () => {
-  const { isAdmin, loading: authLoading } = useAuth();
+  const { isAdmin, isHotelManager, canManageHotels, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('hotels');
   const [hotels, setHotels] = useState([]);
@@ -18,22 +18,22 @@ export const AdminDashboard = () => {
   const [editingRoom, setEditingRoom] = useState(null);
 
   useEffect(() => {
-    if (!authLoading && !isAdmin) {
-      toast.error('Access denied: Admin only');
+    if (!authLoading && !canManageHotels) {
+      toast.error('Access denied: Manager access required');
       navigate('/');
     }
-  }, [isAdmin, authLoading, navigate]);
+  }, [canManageHotels, authLoading, navigate]);
 
   useEffect(() => {
-    if (isAdmin) {
+    if (canManageHotels) {
       fetchHotels();
       fetchRooms();
     }
-  }, [isAdmin]);
+  }, [canManageHotels]);
 
   const fetchHotels = async () => {
     try {
-      const data = await api.hotels.getAll();
+      const data = isAdmin ? await api.hotels.getAll() : await api.hotels.getManagedHotels();
       setHotels(data);
     } catch (error) {
       console.error('Error fetching hotels:', error);
@@ -45,8 +45,13 @@ export const AdminDashboard = () => {
   const fetchRooms = async () => {
     try {
       const data = await api.rooms.getAll();
+      const managedHotelIds = new Set(hotels.map(h => h.id));
+      const filteredRooms = isHotelManager
+        ? data.filter(room => managedHotelIds.has(room.hotel_id))
+        : data;
+
       const roomsWithHotel = await Promise.all(
-        data.map(async (room) => {
+        filteredRooms.map(async (room) => {
           try {
             const hotel = await api.hotels.getById(room.hotel_id);
             return { ...room, hotel: { name: hotel.name } };
@@ -85,7 +90,7 @@ export const AdminDashboard = () => {
     }
   };
 
-  if (authLoading || !isAdmin) {
+  if (authLoading || !canManageHotels) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-12 w-12 animate-spin text-cyan-600" />
@@ -97,7 +102,7 @@ export const AdminDashboard = () => {
     <div className="min-h-screen bg-gray-50">
       <div className="bg-gradient-to-r from-cyan-600 to-blue-700 text-white py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+          <h1 className="text-3xl font-bold">{isAdmin ? 'Admin' : 'Manager'} Dashboard</h1>
           <p className="text-cyan-100 mt-2">Manage your hotels, rooms, and reservations</p>
         </div>
       </div>
@@ -136,16 +141,18 @@ export const AdminDashboard = () => {
               <div>
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-2xl font-bold text-gray-900">Hotels Management</h2>
-                  <button
-                    onClick={() => {
-                      setEditingHotel(null);
-                      setShowHotelForm(true);
-                    }}
-                    className="flex items-center space-x-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:from-cyan-600 hover:to-blue-700 transition-all shadow-lg"
-                  >
-                    <Plus className="h-5 w-5" />
-                    <span>Add Hotel</span>
-                  </button>
+                  {isAdmin && (
+                    <button
+                      onClick={() => {
+                        setEditingHotel(null);
+                        setShowHotelForm(true);
+                      }}
+                      className="flex items-center space-x-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:from-cyan-600 hover:to-blue-700 transition-all shadow-lg"
+                    >
+                      <Plus className="h-5 w-5" />
+                      <span>Add Hotel</span>
+                    </button>
+                  )}
                 </div>
 
                 {loading ? (
@@ -184,12 +191,14 @@ export const AdminDashboard = () => {
                               >
                                 <Edit2 className="h-5 w-5 inline" />
                               </button>
-                              <button
-                                onClick={() => handleDeleteHotel(hotel.id)}
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                <Trash2 className="h-5 w-5 inline" />
-                              </button>
+                              {isAdmin && (
+                                <button
+                                  onClick={() => handleDeleteHotel(hotel.id)}
+                                  className="text-red-600 hover:text-red-700"
+                                >
+                                  <Trash2 className="h-5 w-5 inline" />
+                                </button>
+                              )}
                             </td>
                           </tr>
                         ))}

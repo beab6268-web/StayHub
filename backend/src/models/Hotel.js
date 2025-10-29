@@ -66,6 +66,19 @@ class Hotel {
     const stmt = db.prepare('DELETE FROM hotels WHERE id = ?');
     return stmt.run(id);
   }
+
+  static getManagedHotels(userId) {
+    const stmt = db.prepare(`
+      SELECT h.* FROM hotels h
+      INNER JOIN hotel_managers hm ON h.id = hm.hotel_id
+      WHERE hm.user_id = ?
+    `);
+    const hotels = stmt.all(userId);
+    return hotels.map(hotel => ({
+      ...hotel,
+      amenities: JSON.parse(hotel.amenities)
+    }));
+  }
 }
 
 export default Hotel;

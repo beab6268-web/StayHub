@@ -126,3 +126,45 @@ export const deleteReservation = (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+export const getHotelReservations = (req, res) => {
+  try {
+    const { hotelId } = req.params;
+
+    if (req.userRole === 'admin') {
+      const reservations = Reservation.findByHotelId(hotelId);
+      return res.json(reservations);
+    }
+
+    if (req.userRole === 'hotel_manager') {
+      const reservations = Reservation.findByHotelIdForManager(hotelId, req.userId);
+      return res.json(reservations);
+    }
+
+    res.status(403).json({ error: 'Access denied' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const getAlternativeTimeSuggestions = (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { check_in, check_out, days_range = 7 } = req.query;
+
+    if (!check_in || !check_out) {
+      return res.status(400).json({ error: 'Check-in and check-out dates are required' });
+    }
+
+    const alternatives = Reservation.findAlternativeTimes(
+      roomId,
+      check_in,
+      check_out,
+      parseInt(days_range)
+    );
+
+    res.json(alternatives);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};

@@ -64,6 +64,47 @@ class Room {
     const bookings = bookingsStmt.get(room_id, check_in, check_in, check_out, check_out, check_in, check_out);
     return room.available_rooms - bookings.count;
   }
+
+  static searchAvailable({ location, check_in, check_out, guests, capacity }) {
+    let query = `
+      SELECT r.*, h.name as hotel_name, h.location, h.rating, h.image_url,
+        r.available_rooms - COALESCE((
+          SELECT COUNT(*) FROM reservations res
+          WHERE res.room_id = r.id
+            AND res.status = 'active'
+            AND (
+              (res.check_in <= ? AND res.check_out > ?) OR
+              (res.check_in < ? AND res.check_out >= ?) OR
+              (res.check_in >= ? AND res.check_out <= ?)
+            )
+        ), 0) as available_count
+      FROM rooms r
+      INNER JOIN hotels h ON r.hotel_id = h.id
+      WHERE 1=1
+    `;
+
+    const params = [check_in, check_in, check_out, check_out, check_in, check_out];
+
+    if (location) {
+      query += ' AND h.location LIKE ?';
+      params.push(`%${location}%`);
+    }
+
+    if (capacity) {
+      query += ' AND r.capacity >= ?';
+      params.push(capacity);
+    }
+
+    if (guests) {
+      query += ' AND r.capacity >= ?';
+      params.push(guests);
+    }
+
+    query += ' HAVING available_count > 0';
+
+    const stmt = db.prepare(query);
+    return stmt.all(...params);
+  }
 }
 
 export default Room;

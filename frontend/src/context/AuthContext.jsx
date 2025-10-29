@@ -80,9 +80,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   const isAdmin = profile?.role === 'admin';
+  const isHotelManager = profile?.role === 'hotel_manager';
+  const canManageHotels = isAdmin || isHotelManager;
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signIn, signUp, signOut, isAdmin }}>
+    <AuthContext.Provider value={{ user, profile, loading, signIn, signUp, signOut, isAdmin, isHotelManager, canManageHotels }}>
       {children}
     </AuthContext.Provider>
   );

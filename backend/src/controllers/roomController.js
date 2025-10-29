@@ -102,3 +102,25 @@ export const deleteRoom = (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+export const searchAvailableRooms = (req, res) => {
+  try {
+    const { location, check_in, check_out, guests, capacity } = req.query;
+
+    if (!check_in || !check_out) {
+      return res.status(400).json({ error: 'Check-in and check-out dates are required' });
+    }
+
+    const availableRooms = Room.searchAvailable({
+      location,
+      check_in,
+      check_out,
+      guests: guests ? parseInt(guests) : null,
+      capacity: capacity ? parseInt(capacity) : null
+    });
+
+    res.json(availableRooms);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};

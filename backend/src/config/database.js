@@ -13,7 +13,7 @@ db.exec(`
     name TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin')),
+    role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin', 'hotel_manager')),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -39,6 +39,16 @@ db.exec(`
     FOREIGN KEY (hotel_id) REFERENCES hotels(id) ON DELETE CASCADE
   );
 
+  CREATE TABLE IF NOT EXISTS hotel_managers (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    hotel_id TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (hotel_id) REFERENCES hotels(id) ON DELETE CASCADE,
+    UNIQUE(user_id, hotel_id)
+  );
+
   CREATE TABLE IF NOT EXISTS reservations (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
@@ -56,9 +66,13 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_rooms_hotel_id ON rooms(hotel_id);
+  CREATE INDEX IF NOT EXISTS idx_hotel_managers_user_id ON hotel_managers(user_id);
+  CREATE INDEX IF NOT EXISTS idx_hotel_managers_hotel_id ON hotel_managers(hotel_id);
   CREATE INDEX IF NOT EXISTS idx_reservations_user_id ON reservations(user_id);
   CREATE INDEX IF NOT EXISTS idx_reservations_hotel_id ON reservations(hotel_id);
   CREATE INDEX IF NOT EXISTS idx_reservations_status ON reservations(status);
+  CREATE INDEX IF NOT EXISTS idx_reservations_dates ON reservations(check_in, check_out);
+  CREATE INDEX IF NOT EXISTS idx_reservations_room_status ON reservations(room_id, status);
 `);
 
 console.log('Database initialized successfully');

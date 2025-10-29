@@ -72,6 +72,15 @@ export const api = {
       return data;
     },
 
+    getManagedHotels: async () => {
+      const response = await fetch(`${API_URL}/hotels/managed/my-hotels`, {
+        headers: authHeaders()
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to fetch managed hotels');
+      return data;
+    },
+
     search: async (location, rating) => {
       const params = new URLSearchParams();
       if (location) params.append('location', location);
@@ -145,6 +154,19 @@ export const api = {
       return data;
     },
 
+    searchAvailable: async (location, checkIn, checkOut, guests, capacity) => {
+      const params = new URLSearchParams();
+      if (location) params.append('location', location);
+      if (checkIn) params.append('check_in', checkIn);
+      if (checkOut) params.append('check_out', checkOut);
+      if (guests) params.append('guests', guests);
+      if (capacity) params.append('capacity', capacity);
+      const response = await fetch(`${API_URL}/rooms/search/available?${params}`);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to search available rooms');
+      return data;
+    },
+
     create: async (roomData) => {
       const response = await fetch(`${API_URL}/rooms`, {
         method: 'POST',
@@ -200,6 +222,27 @@ export const api = {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Failed to fetch reservations');
+      return data;
+    },
+
+    getHotelReservations: async (hotelId) => {
+      const response = await fetch(`${API_URL}/reservations/hotel/${hotelId}`, {
+        headers: authHeaders()
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to fetch hotel reservations');
+      return data;
+    },
+
+    getAlternatives: async (roomId, checkIn, checkOut, daysRange = 7) => {
+      const params = new URLSearchParams({
+        check_in: checkIn,
+        check_out: checkOut,
+        days_range: daysRange
+      });
+      const response = await fetch(`${API_URL}/reservations/alternatives/${roomId}?${params}`);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to fetch alternatives');
       return data;
     },
 

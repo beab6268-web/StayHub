@@ -3,7 +3,7 @@ import { Hotel, User, LogOut, LayoutDashboard } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export const Navbar = () => {
-  const { user, profile, signOut, isAdmin } = useAuth();
+  const { user, profile, signOut, isAdmin, canManageHotels } = useAuth();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -33,13 +33,13 @@ export const Navbar = () => {
                 >
                   My Bookings
                 </Link>
-                {isAdmin && (
+                {canManageHotels && (
                   <Link
                     to="/admin"
                     className="flex items-center space-x-1 text-gray-700 hover:text-cyan-600 font-medium transition-colors"
                   >
                     <LayoutDashboard className="h-4 w-4" />
-                    <span>Admin</span>
+                    <span>{isAdmin ? 'Admin' : 'Manage'}</span>
                   </Link>
                 )}
                 <div className="flex items-center space-x-3">
