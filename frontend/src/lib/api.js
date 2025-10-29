@@ -292,5 +292,100 @@ export const api = {
       if (!response.ok) throw new Error(data.error || 'Failed to delete reservation');
       return data;
     }
+  },
+
+  admin: {
+    getAllUsers: async () => {
+      const response = await fetch(`${API_URL}/admin/users`, {
+        headers: authHeaders()
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to fetch users');
+      return data;
+    },
+
+    createUser: async (userData) => {
+      const response = await fetch(`${API_URL}/admin/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders()
+        },
+        body: JSON.stringify(userData)
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to create user');
+      return data;
+    },
+
+    updateUserRole: async (userId, role) => {
+      const response = await fetch(`${API_URL}/admin/users/${userId}/role`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders()
+        },
+        body: JSON.stringify({ role })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to update user role');
+      return data;
+    },
+
+    deleteUser: async (userId) => {
+      const response = await fetch(`${API_URL}/admin/users/${userId}`, {
+        method: 'DELETE',
+        headers: authHeaders()
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to delete user');
+      return data;
+    },
+
+    assignHotelManager: async (userId, hotelId) => {
+      const response = await fetch(`${API_URL}/admin/hotel-managers/assign`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders()
+        },
+        body: JSON.stringify({ user_id: userId, hotel_id: hotelId })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to assign hotel manager');
+      return data;
+    },
+
+    removeHotelManager: async (userId, hotelId) => {
+      const response = await fetch(`${API_URL}/admin/hotel-managers/remove`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders()
+        },
+        body: JSON.stringify({ user_id: userId, hotel_id: hotelId })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to remove hotel manager');
+      return data;
+    },
+
+    getHotelManagers: async (hotelId) => {
+      const response = await fetch(`${API_URL}/admin/hotel-managers/${hotelId}`, {
+        headers: authHeaders()
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to fetch hotel managers');
+      return data;
+    },
+
+    getUserHotels: async (userId) => {
+      const response = await fetch(`${API_URL}/admin/users/${userId}/hotels`, {
+        headers: authHeaders()
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to fetch user hotels');
+      return data;
+    }
   }
 };

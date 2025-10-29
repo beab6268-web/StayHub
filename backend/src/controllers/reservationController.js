@@ -1,5 +1,6 @@
 import Reservation from '../models/Reservation.js';
 import Room from '../models/Room.js';
+import db from '../config/database.js';
 
 export const getAllReservations = (req, res) => {
   try {
@@ -98,7 +99,20 @@ export const updateReservationStatus = (req, res) => {
       return res.status(404).json({ error: 'Reservation not found' });
     }
 
-    if (req.userRole !== 'admin' && existingReservation.user_id !== req.userId) {
+    const isOwner = existingReservation.user_id === req.userId;
+    const isAdminUser = req.userRole === 'admin';
+
+    let isHotelManager = false;
+    if (req.userRole === 'hotel_manager') {
+      const stmt = db.prepare(`
+        SELECT * FROM hotel_managers
+        WHERE user_id = ? AND hotel_id = ?
+      `);
+      const assignment = stmt.get(req.userId, existingReservation.hotel_id);
+      isHotelManager = !!assignment;
+    }
+
+    if (!isAdminUser && !isOwner && !isHotelManager) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
