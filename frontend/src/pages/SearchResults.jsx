@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { HotelCard } from '../components/HotelCard';
-import { supabase } from '../lib/supabase';
+import { api } from '../lib/api';
 import { Loader2, SlidersHorizontal } from 'lucide-react';
 
 export const SearchResults = () => {
@@ -22,21 +22,16 @@ export const SearchResults = () => {
 
   const fetchFilteredHotels = async () => {
     try {
-      let query = supabase.from('hotels').select('*');
+      let results = [];
 
       if (location) {
-        query = query.ilike('location', `%${location}%`);
+        results = await api.hotels.search(location, minRating || null);
+      } else {
+        results = await api.hotels.getAll();
+        if (minRating > 0) {
+          results = results.filter(hotel => hotel.rating >= minRating);
+        }
       }
-
-      if (minRating > 0) {
-        query = query.gte('rating', minRating);
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      let results = data || [];
 
       if (sortBy === 'price-low') {
         results.sort((a, b) => {

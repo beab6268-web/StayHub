@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { api } from '../lib/api';
 import { BookingForm } from '../components/BookingForm';
 import { MapPin, Star, Wifi, Coffee, Dumbbell, UtensilsCrossed, Car, Waves, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -33,13 +33,7 @@ export const HotelDetails = () => {
 
   const fetchHotelDetails = async () => {
     try {
-      const { data, error } = await supabase
-        .from('hotels')
-        .select('*')
-        .eq('id', id)
-        .maybeSingle();
-
-      if (error) throw error;
+      const data = await api.hotels.getById(id);
       setHotel(data);
     } catch (error) {
       console.error('Error fetching hotel:', error);
@@ -51,14 +45,9 @@ export const HotelDetails = () => {
 
   const fetchRooms = async () => {
     try {
-      const { data, error } = await supabase
-        .from('rooms')
-        .select('*')
-        .eq('hotel_id', id)
-        .order('price_per_night', { ascending: true });
-
-      if (error) throw error;
-      setRooms(data || []);
+      const data = await api.rooms.getByHotelId(id);
+      const sorted = data.sort((a, b) => a.price_per_night - b.price_per_night);
+      setRooms(sorted);
     } catch (error) {
       console.error('Error fetching rooms:', error);
     }
@@ -72,18 +61,14 @@ export const HotelDetails = () => {
     }
 
     try {
-      const { error } = await supabase.from('reservations').insert({
-        user_id: user.id,
+      await api.reservations.create({
         hotel_id: id,
         room_id: bookingData.roomId,
         check_in: bookingData.checkIn,
         check_out: bookingData.checkOut,
         guests: bookingData.guests,
         total_price: bookingData.totalPrice,
-        status: 'active',
       });
-
-      if (error) throw error;
 
       toast.success('Booking confirmed!');
       navigate('/my-bookings');

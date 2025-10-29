@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { Calendar, Users, DollarSign, MapPin, Hotel, Loader2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -18,18 +18,8 @@ export const MyBookings = () => {
 
   const fetchBookings = async () => {
     try {
-      const { data, error } = await supabase
-        .from('reservations')
-        .select(`
-          *,
-          hotel:hotels(name, location, image_url),
-          room:rooms(type)
-        `)
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setBookings(data || []);
+      const data = await api.reservations.getMyReservations();
+      setBookings(data);
     } catch (error) {
       console.error('Error fetching bookings:', error);
       toast.error('Failed to load bookings');
@@ -42,13 +32,7 @@ export const MyBookings = () => {
     if (!confirm('Are you sure you want to cancel this booking?')) return;
 
     try {
-      const { error } = await supabase
-        .from('reservations')
-        .update({ status: 'cancelled' })
-        .eq('id', bookingId);
-
-      if (error) throw error;
-
+      await api.reservations.updateStatus(bookingId, 'cancelled');
       toast.success('Booking cancelled successfully');
       fetchBookings();
     } catch (error) {

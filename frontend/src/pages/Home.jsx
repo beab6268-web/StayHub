@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SearchBar } from '../components/SearchBar';
 import { HotelCard } from '../components/HotelCard';
-import { supabase } from '../lib/supabase';
+import { api } from '../lib/api';
 import { Loader2 } from 'lucide-react';
 
 export const Home = () => {
@@ -16,13 +16,9 @@ export const Home = () => {
 
   const fetchHotels = async () => {
     try {
-      const { data, error } = await supabase
-        .from('hotels')
-        .select('*')
-        .order('rating', { ascending: false });
-
-      if (error) throw error;
-      setHotels(data || []);
+      const data = await api.hotels.getAll();
+      const sorted = data.sort((a, b) => b.rating - a.rating);
+      setHotels(sorted);
     } catch (error) {
       console.error('Error fetching hotels:', error);
     } finally {

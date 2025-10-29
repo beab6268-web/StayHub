@@ -30,7 +30,27 @@ export const getReservationById = (req, res) => {
 export const getUserReservations = (req, res) => {
   try {
     const reservations = Reservation.findByUserId(req.userId);
-    res.json(reservations);
+    const transformed = reservations.map(r => ({
+      id: r.id,
+      user_id: r.user_id,
+      hotel_id: r.hotel_id,
+      room_id: r.room_id,
+      check_in: r.check_in,
+      check_out: r.check_out,
+      guests: r.guests,
+      total_price: r.total_price,
+      status: r.status,
+      created_at: r.created_at,
+      hotel: {
+        name: r.hotel_name,
+        location: r.location,
+        image_url: r.image_url
+      },
+      room: {
+        type: r.room_type
+      }
+    }));
+    res.json(transformed);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

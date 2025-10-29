@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
+import { api } from '../lib/api';
 import { Plus, Edit2, Trash2, Hotel as HotelIcon, Loader2, DoorOpen } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export const AdminDashboard = () => {
   const { isAdmin, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('hotels');   // 'hotels' | 'rooms' | 'reservations'
+  const [activeTab, setActiveTab] = useState('hotels');
   const [hotels, setHotels] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,9 +33,8 @@ export const AdminDashboard = () => {
 
   const fetchHotels = async () => {
     try {
-      const { data, error } = await supabase.from('hotels').select('*').order('created_at', { ascending: false });
-      if (error) throw error;
-      setHotels(data || []);
+      const data = await api.hotels.getAll();
+      setHotels(data);
     } catch (error) {
       console.error('Error fetching hotels:', error);
     } finally {
@@ -45,9 +44,18 @@ export const AdminDashboard = () => {
 
   const fetchRooms = async () => {
     try {
-      const { data, error } = await supabase.from('rooms').select('*, hotel:hotels(name)').order('created_at', { ascending: false });
-      if (error) throw error;
-      setRooms(data || []);
+      const data = await api.rooms.getAll();
+      const roomsWithHotel = await Promise.all(
+        data.map(async (room) => {
+          try {
+            const hotel = await api.hotels.getById(room.hotel_id);
+            return { ...room, hotel: { name: hotel.name } };
+          } catch {
+            return { ...room, hotel: { name: 'Unknown' } };
+          }
+        })
+      );
+      setRooms(roomsWithHotel);
     } catch (error) {
       console.error('Error fetching rooms:', error);
     }
@@ -57,8 +65,7 @@ export const AdminDashboard = () => {
     if (!confirm('Are you sure you want to delete this hotel?')) return;
 
     try {
-      const { error } = await supabase.from('hotels').delete().eq('id', id);
-      if (error) throw error;
+      await api.hotels.delete(id);
       toast.success('Hotel deleted successfully');
       fetchHotels();
     } catch (error) {
@@ -70,8 +77,7 @@ export const AdminDashboard = () => {
     if (!confirm('Are you sure you want to delete this room?')) return;
 
     try {
-      const { error } = await supabase.from('rooms').delete().eq('id', id);
-      if (error) throw error;
+      await api.rooms.delete(id);
       toast.success('Room deleted successfully');
       fetchRooms();
     } catch (error) {
@@ -308,11 +314,23 @@ const HotelFormModal = ({
     name: hotel?.name || '',
     description: hotel?.description || '',
     location: hotel?.location || '',
-    image_url: hotel?.image_url || '',
+    // switch from image_url string to file + preview
+    image_file: null,
+    image_preview: hotel?.image_url || '',
     rating: hotel?.rating || 4.5,
     amenities: hotel?.amenities?.join(', ') || '',
   });
   const [loading, setLoading] = useState(false);
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const preview = URL.createObjectURL(file);
+      setFormData((s) => ({ ...s, image_file: file, image_preview: preview }));
+    } else {
+      setFormData((s) => ({ ...s, image_file: null }));
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -325,19 +343,40 @@ const HotelFormModal = ({
         name: formData.name,
         description: formData.description,
         location: formData.location,
-        image_url: formData.image_url,
         rating: formData.rating,
         amenities: amenitiesArray,
       };
 
+      const formDataToSend = new FormData();
+      Object.keys(hotelData).forEach((key) => {
+        if (key === 'amenities') {
+          formDataToSend.append(key, JSON.stringify(hotelData[key]));
+        } else {
+          formDataToSend.append(key, hotelData[key]);
+        }
+      });
+
+      // include file when present. backend expects uploaded file (req.file)
+      if (formData.image_file) {
+        formDataToSend.append('file', formData.image_file);
+      } else if (!hotel) {
+        // creating requires an image
+        toast.error('Hotel image is required');
+        setLoading(false);
+        return;
+      }
+
       if (hotel) {
-        const { error } = await supabase.from('hotels').update(hotelData).eq('id', hotel.id);
-        if (error) throw error;
+        await api.hotels.update(hotel.id, formDataToSend);
         toast.success('Hotel updated successfully');
       } else {
-        const { error } = await supabase.from('hotels').insert(hotelData);
-        if (error) throw error;
+        await api.hotels.create(formDataToSend);
         toast.success('Hotel added successfully');
+      }
+
+      // cleanup created object URLs
+      if (formData.image_preview && formData.image_file) {
+        URL.revokeObjectURL(formData.image_preview);
       }
 
       onSuccess();
@@ -390,15 +429,22 @@ const HotelFormModal = ({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Image URL</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Image</label>
             <input
-              type="url"
-              value={formData.image_url}
-              onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-              required
-              placeholder="https://images.pexels.com/..."
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              // require only for create
+              required={!hotel}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent outline-none"
             />
+            {formData.image_preview && (
+              <img
+                src={formData.image_preview}
+                alt="preview"
+                className="mt-3 max-h-40 rounded-md object-cover"
+              />
+            )}
           </div>
 
           <div>
@@ -469,12 +515,10 @@ const RoomFormModal = ({
 
     try {
       if (room) {
-        const { error } = await supabase.from('rooms').update(formData).eq('id', room.id);
-        if (error) throw error;
+        await api.rooms.update(room.id, formData);
         toast.success('Room updated successfully');
       } else {
-        const { error } = await supabase.from('rooms').insert(formData);
-        if (error) throw error;
+        await api.rooms.create(formData);
         toast.success('Room added successfully');
       }
 

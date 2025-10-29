@@ -62,11 +62,14 @@ export const login = async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+
     const token = jwt.sign(
       { userId: user.id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
+
+    console.log('Comparing passwords:', { entered: password, stored: user.password });
 
     res.json({
       message: 'Login successful',
