@@ -1,6 +1,5 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-// import { User } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { createContext, useContext, useEffect, useState } from 'react';
+import { api } from '../lib/api';
 import toast from 'react-hot-toast';
 
 const AuthContext = createContext(undefined);
@@ -18,43 +17,25 @@ export const AuthProvider = ({ children }) => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // useEffect(() => {
-  //   supabase.auth.getSession().then(({ data: { session } }) => {
-  //     setUser(session?.user ?? null);
-  //     if (session?.user) {
-  //       fetchProfile(session.user.id);
-  //     } else {
-  //       setLoading(false);
-  //     }
-  //   });
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      fetchProfile();
+    } else {
+      setLoading(false);
+    }
+  }, []);
 
-  //   const { data } = supabase.auth.onAuthStateChange((async () => {
-  //     (async (_event, session) => {
-  //       setUser(session?.user ?? null);
-  //       if (session?.user) {
-  //         await fetchProfile(session.user.id);
-  //       } else {
-  //         setProfile(null);
-  //         setLoading(false);
-  //       }
-  //     })();
-  //   }));
-
-  //   return () => subscription.unsubscribe();
-  // }, []);
-
-  const fetchProfile = async (userId) => {
+  const fetchProfile = async () => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
-
-      if (error) throw error;
-      setProfile(data);
+      const profileData = await api.auth.getProfile();
+      setUser({ id: profileData.id, email: profileData.email });
+      setProfile(profileData);
     } catch (error) {
       console.error('Error fetching profile:', error);
+      localStorage.removeItem('token');
+      setUser(null);
+      setProfile(null);
     } finally {
       setLoading(false);
     }
@@ -62,8 +43,10 @@ export const AuthProvider = ({ children }) => {
 
   const signIn = async (email, password) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      const data = await api.auth.login(email, password);
+      localStorage.setItem('token', data.token);
+      setUser({ id: data.user.id, email: data.user.email });
+      setProfile(data.user);
       toast.success('Welcome back!');
     } catch (error) {
       toast.error(error.message || 'Failed to sign in');
@@ -73,20 +56,11 @@ export const AuthProvider = ({ children }) => {
 
   const signUp = async (email, password, name) => {
     try {
-      const { data, error } = await supabase.auth.signUp({ email, password });
-      if (error) throw error;
-
-      if (data.user) {
-        const { error: profileError } = await supabase.from('profiles').insert({
-          id: data.user.id,
-          email,
-          name,
-          role: 'user'
-        });
-
-        if (profileError) throw profileError;
-        toast.success('Account created successfully!');
-      }
+      const data = await api.auth.register(name, email, password);
+      localStorage.setItem('token', data.token);
+      setUser({ id: data.user.id, email: data.user.email });
+      setProfile(data.user);
+      toast.success('Account created successfully!');
     } catch (error) {
       toast.error(error.message || 'Failed to sign up');
       throw error;
@@ -95,8 +69,9 @@ export const AuthProvider = ({ children }) => {
 
   const signOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      localStorage.removeItem('token');
+      setUser(null);
+      setProfile(null);
       toast.success('Signed out successfully');
     } catch (error) {
       toast.error(error.message || 'Failed to sign out');
